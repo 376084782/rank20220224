@@ -12,7 +12,7 @@ router.get("/rank/count", async (req, res, next) => {
   let data = req.query;
   let record = await ModelRankRecord.findOne({
     uid: data.uid
-  })
+  }) || {}
   res.send({
     code: 0, data: { count: record.count }
   });
