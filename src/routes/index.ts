@@ -6,7 +6,7 @@ var express = require("express");
 var router = express.Router();
 /* GET home page. */
 // 排行榜记录的最大条数
-const countMax = 3;
+const countMax = 100;
 
 router.get("/rank/count", async (req, res, next) => {
   let data = req.query;
@@ -47,12 +47,12 @@ router.get("/rank/update", async (req, res, next) => {
       count: 1
     })
   } else {
-    // if (record.count >= 3) {
-    //   res.send({
-    //     code: 20001, data: {}, msg: '上报超过三次'
-    //   });
-    //   return
-    // }
+    if (record.count >= 3) {
+      res.send({
+        code: 20001, data: {}, msg: '上报超过三次'
+      });
+      return
+    }
     await ModelRankRecord.updateOne({
       uid: data.uid
     }, {
@@ -63,7 +63,11 @@ router.get("/rank/update", async (req, res, next) => {
   let count = await ModelRank.find().count();
   if (!!dataUser) {
     // 存在已有数据，对比自己的分数是不是刷新记录了，更新数据
-    await ModelRank.updateOne({ uid: data.uid }, { score: data.score })
+    await ModelRank.updateOne({ uid: data.uid }, {
+      score: data.score,
+      nickname: data.nickname,
+      avatar: data.avatar,
+    })
   } else if (count < countMax) {
     // 当前排行榜记录数不足最大记录条数
     // 记录之
