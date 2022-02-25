@@ -21,15 +21,17 @@ router.get("/rank/info", async (req, res, next) => {
   let data = req.query;
   let list: any = await ModelRank.find().sort({ score: -1, time_update: 1 }).limit(100);
   let rankIdx = 0;
+  let dataSelf: any = {};
   for (let i = 0; i < list.length; i++) {
     let e = list[i]
     if (e.uid == data.uid) {
       rankIdx = i + 1;
+      dataSelf = e
       break
     }
   }
   res.send({
-    code: 0, data: { rankIdx }
+    code: 0, data: { rankIdx, score: dataSelf.score }
   });
 })
 
