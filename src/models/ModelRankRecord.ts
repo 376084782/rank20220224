@@ -11,6 +11,8 @@ const ModelRankRecord = new Schema({
   avatar: { type: String, default: '' },
   // 上报次数
   count: { type: Number, default: 0 },
+  // 手机号
+  phone: { type: String, default: '' },
 })
 
 export default model('rankRecord', ModelRankRecord);

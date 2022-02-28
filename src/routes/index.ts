@@ -1,12 +1,143 @@
 import API from "../api/API";
 import ModelRank from "../models/ModelRank";
 import ModelRankRecord from "../models/ModelRankRecord";
-
+import Util from "../socket/Util";
+const axios = require("axios");
+const Qs = require("qs");
 var express = require("express");
 var router = express.Router();
 /* GET home page. */
 // 排行榜记录的最大条数
-const countMax = 100;
+const countMax = 500;
+const host = 'https://scrm-uat.sleemon.cn/sleemon/apiserver';
+const tempMap = [23000085, 23000086, 23000087, 23000090, 23000090]
+const timeEnd = new Date('2022/3/29 0:0:0:0')
+let dataToken: any = {}
+
+let secLast = 0;
+
+function checkToken() {
+  let clientId = '9d54cc949f4b49858d1a59e81d665cb9'
+  let clientSecret = '9cc08aba966d490ba2d7139fc3876812cb3becb0158a4c9684aa7d0b6680a324'
+  return new Promise((rsv) => {
+    let secNow = Math.floor(new Date().getTime() / 1000);
+    let timeOff = secNow - secLast;
+    if (dataToken && dataToken.expires_in && timeOff < dataToken.expires_in) {
+    } else {
+      axios({
+        method: 'get',
+        url: host + `/oauth/token`,
+        params: {
+          grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret
+        }
+      }).then(async e => {
+        dataToken = e.data
+        secLast = secNow
+        rsv(dataToken)
+      })
+    }
+  })
+}
+checkToken()
+
+function getUserInfo(data) {
+  return new Promise(async (rsv, rej) => {
+    await checkToken()
+    axios({
+      url: host + '/coupon/coupons/couponReceiveToMember',
+      method: 'post',
+      data: {
+        // userId
+        id: data.uid
+      },
+      headers: {
+        "Content-Type": "application/json",
+        'Authorization': 'Bearer ' + dataToken.access_token
+      }
+    }).then(e => {
+      rsv(e)
+    }).catch(e => {
+      rej(e)
+    })
+  })
+}
+router.get("/user/info", async (req, res, next) => {
+  let data = req.query;
+  getUserInfo(data).then(e => {
+    res.send(e)
+  }).catch(e => {
+    // todo:token过期 再来一遍
+    getUserInfo(data).then(e1 => {
+      res.send(e1)
+    }).catch(e1 => {
+      res.send(e1)
+    })
+
+  })
+
+})
+
+
+router.get("/testSend", async (req, res, next) => {
+  let data = req.query;
+  await checkToken();
+  // 做一个循环 在榜上的发放优惠券
+  try {
+    let list: any = await ModelRank.find().sort({ score: -1, time_update: 1 }).limit(100);
+    for (let i = 0; i < list.length; i++) {
+      let info = list[i];
+      if (!info.flagSend) {
+        let tempId = 0;
+        if (i < 3) {
+          tempId = tempMap[0]
+        } else if (i < 10) {
+          tempId = tempMap[1]
+        } else if (i < 30) {
+          tempId = tempMap[2]
+        } else if (i < 100) {
+          tempId = tempMap[3]
+        } else if (i < 500) {
+          tempId = tempMap[4]
+        }
+        await doSendTicket(info, tempId);
+        await ModelRank.updateOne({ uid: info.uid }, { flagSend: true })
+      }
+    }
+    res.send({
+      code: 0
+    })
+  } catch (e) {
+    console.log('发放优惠券有问题了')
+    res.send({
+      code: -1
+    })
+  }
+})
+
+function doSendTicket(user, tempId) {
+  return new Promise((rsv, rej) => {
+    axios({
+      url: host + '/coupon/coupons/couponReceiveToMember',
+      method: 'post',
+      data: {
+        // 优惠券id
+        couponTemplateId: tempId,
+        // userId
+        id: user.uid
+      },
+      headers: {
+        "Content-Type": "application/json",
+        'Authorization': 'Bearer ' + dataToken.access_token
+      }
+    }).then(e => {
+      console.log(`发放优惠券结果:`, e.data)
+      rsv(e.data)
+    }).catch(e => {
+      console.log('发放优惠券失败:', user, e.response)
+      rej(e.response)
+    })
+  })
+}
 
 router.get("/rank/count", async (req, res, next) => {
   let data = req.query;
@@ -37,6 +168,12 @@ router.get("/rank/info", async (req, res, next) => {
 
 router.get("/rank/update", async (req, res, next) => {
   let data = req.query;
+  if (new Date().getTime() > timeEnd.getTime()) {
+    res.send({
+      code: 20002, data: {}, msg: '超出活动时间'
+    });
+    return
+  }
   let record = await ModelRankRecord.findOne({
     uid: data.uid
   })
@@ -46,7 +183,8 @@ router.get("/rank/update", async (req, res, next) => {
       uid: data.uid,
       nickname: data.nickname,
       avatar: data.avatar,
-      count: 1
+      count: 1,
+      phone: data.phone
     })
   } else {
     if (record.count >= 3) {
@@ -69,6 +207,7 @@ router.get("/rank/update", async (req, res, next) => {
       score: data.score,
       nickname: data.nickname,
       avatar: data.avatar,
+      phone: data.phone
     })
   } else if (count < countMax) {
     // 当前排行榜记录数不足最大记录条数
@@ -79,6 +218,7 @@ router.get("/rank/update", async (req, res, next) => {
       avatar: data.avatar,
       score: data.score,
       time_update: getTimeNow(),
+      phone: data.phone
     })
   } else {
     // 自己没有上过榜
@@ -94,6 +234,7 @@ router.get("/rank/update", async (req, res, next) => {
         avatar: data.avatar,
         score: data.score,
         time_update: getTimeNow(),
+        phone: data.phone
       })
     }
   }
