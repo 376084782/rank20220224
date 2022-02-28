@@ -23,6 +23,7 @@ function checkToken() {
     let secNow = Math.floor(new Date().getTime() / 1000);
     let timeOff = secNow - secLast;
     if (dataToken && dataToken.expires_in && timeOff < dataToken.expires_in) {
+      rsv(dataToken)
     } else {
       axios({
         method: 'get',
@@ -132,10 +133,10 @@ function doSendTicket(user, tempId) {
         'Authorization': 'Bearer ' + dataToken.access_token
       }
     }).then(e => {
-      console.log(`发放优惠券结果:`, e.data)
+      console.log(`用户${user.uid}（${user.phone}）发放优惠券结果:`, e.data)
       rsv(e.data)
     }).catch(e => {
-      console.log('发放优惠券失败:', user, e.response)
+      console.log(`用户${user.uid}（${user.phone}）发放优惠券失败:`, user, e.response)
       rej(e.response)
     })
   })
