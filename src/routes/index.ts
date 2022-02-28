@@ -78,12 +78,13 @@ router.get("/user/info", async (req, res, next) => {
 })
 
 
-router.get("/testSend", async (req, res, next) => {
+router.get("/award/send", async (req, res, next) => {
   let data = req.query;
   await checkToken();
   // 做一个循环 在榜上的发放优惠券
   try {
     let list: any = await ModelRank.find().sort({ score: -1, time_update: 1 }).limit(100);
+    console.log('排行榜待发放列表', list)
     for (let i = 0; i < list.length; i++) {
       let info = list[i];
       if (!info.flagSend) {
@@ -99,6 +100,7 @@ router.get("/testSend", async (req, res, next) => {
         } else if (i < 500) {
           tempId = tempMap[4]
         }
+        console.log('发放', info, tempId)
         await doSendTicket(info, tempId);
         await ModelRank.updateOne({ uid: info.uid }, { flagSend: true })
       }
