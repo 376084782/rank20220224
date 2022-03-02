@@ -1,4 +1,6 @@
 import API from "../api/API";
+import ModelGift from "../models/ModelGift";
+import ModelGiftRecord from "../models/ModelGiftRecord";
 import ModelRank from "../models/ModelRank";
 import ModelRankRecord from "../models/ModelRankRecord";
 import Util from "../socket/Util";
@@ -10,6 +12,8 @@ var router = express.Router();
 // 排行榜记录的最大条数
 const countMax = 500;
 const host = 'https://scrm-uat.sleemon.cn/sleemon/apiserver';
+const clientId = '9d54cc949f4b49858d1a59e81d665cb9'
+const clientSecret = '9cc08aba966d490ba2d7139fc3876812cb3becb0158a4c9684aa7d0b6680a324'
 const tempMap = [23000085, 23000086, 23000087, 23000090, 23000090]
 const timeEnd = new Date('2022/3/29 0:0:0:0')
 let dataToken: any = {}
@@ -17,8 +21,6 @@ let dataToken: any = {}
 let secLast = 0;
 
 function checkToken() {
-  let clientId = '9d54cc949f4b49858d1a59e81d665cb9'
-  let clientSecret = '9cc08aba966d490ba2d7139fc3876812cb3becb0158a4c9684aa7d0b6680a324'
   return new Promise((rsv) => {
     let secNow = Math.floor(new Date().getTime() / 1000);
     let timeOff = secNow - secLast;
@@ -78,6 +80,74 @@ router.get("/user/info", async (req, res, next) => {
 
 })
 
+router.get("/award/get", async (req, res, next) => {
+  // 传参 uid phone
+  let data = req.query;
+  // 判断这个人领取过奖励了没有
+  let record = await ModelGiftRecord.findOne({ uid: data.uid });
+  if (record) {
+    res.send({
+      code: 10001,
+      msg: '已领取过奖励',
+      data: record
+    })
+    return
+  }
+  await checkToken();
+  let p = Math.random() < .8
+  if (p) {
+    let giftList = await ModelGift.find();
+    let giftListHave = giftList.filter(e => e.count > 0);
+    if (giftListHave.length == 0) {
+      res.send({
+        code: 10002,
+        msg: '奖池已发完',
+        data: record
+      })
+      return
+    }
+    let gift = giftListHave[Util.getRandomInt(0, giftListHave.length)];
+    let dataRecordNew = {
+      uid: data.uid,
+      giftId: gift.id,
+      giftName: gift.name,
+      createTime: new Date().toLocaleString(),
+    };
+    let funcAfterSendAward = async () => {
+      await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 })
+      await ModelGiftRecord.create(dataRecordNew)
+      res.send({
+        code: 0,
+        data: dataRecordNew
+      })
+    }
+    doSendTicket({ uid: data.uid, phone: data.phone }, gift.id).then(e => {
+      funcAfterSendAward()
+    }).catch(async e => {
+      // 发放失败，重新获取token后重试一次
+      await checkToken();
+      doSendTicket({ uid: data.uid, phone: data.phone }, gift.id)
+        .then(() => {
+          funcAfterSendAward()
+        })
+        .catch(e => {
+          res.send({
+            code: 10003,
+            msg: '发放失败',
+            data: e
+          })
+        })
+    })
+
+  } else {
+    res.send({
+      code: 0,
+      data: {
+        giftId: -1
+      }
+    })
+  }
+})
 
 router.get("/award/send", async (req, res, next) => {
   let data = req.query;
@@ -133,8 +203,13 @@ function doSendTicket(user, tempId) {
         'Authorization': 'Bearer ' + dataToken.access_token
       }
     }).then(e => {
-      console.log(`用户${user.uid}（${user.phone}）发放优惠券结果:`, e.data)
-      rsv(e.data)
+      if (e.data.ok) {
+        console.log(`用户${user.uid}（${user.phone}）发放优惠券结果:`, e.data)
+        rsv(e.data)
+      } else {
+        console.log(`用户${user.uid}（${user.phone}）发放优惠券失败结果:`, e.data)
+        rej(e.data)
+      }
     }).catch(e => {
       console.log(`用户${user.uid}（${user.phone}）发放优惠券失败:`, user, e.response)
       rej(e.response)
