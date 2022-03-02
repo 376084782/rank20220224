@@ -142,7 +142,6 @@ router.get("/award/get", async (req, res, next) => {
           })
         })
     })
-
   } else {
     res.send({
       code: 0,
