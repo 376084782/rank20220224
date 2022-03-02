@@ -87,7 +87,8 @@ router.get("/award/get", async (req, res, next) => {
   let record = await ModelGiftRecord.findOne({ uid: data.uid });
   if (record) {
     res.send({
-      code: 10001,
+      code: 0,
+      errCode: 10001,
       msg: '已领取过奖励',
       data: record
     })
@@ -100,9 +101,10 @@ router.get("/award/get", async (req, res, next) => {
     let giftListHave = giftList.filter(e => e.count > 0);
     if (giftListHave.length == 0) {
       res.send({
-        code: 10002,
+        code: 0,
+        errCode: 10002,
         msg: '奖池已发完',
-        data: record
+        data: {}
       })
       return
     }
@@ -118,6 +120,7 @@ router.get("/award/get", async (req, res, next) => {
       await ModelGiftRecord.create(dataRecordNew)
       res.send({
         code: 0,
+        msg: `恭喜获得${gift.name}`,
         data: dataRecordNew
       })
     }
@@ -132,7 +135,8 @@ router.get("/award/get", async (req, res, next) => {
         })
         .catch(e => {
           res.send({
-            code: 10003,
+            code: 0,
+            errCode: 10003,
             msg: '发放失败',
             data: e
           })
@@ -142,8 +146,9 @@ router.get("/award/get", async (req, res, next) => {
   } else {
     res.send({
       code: 0,
+      msg: '很遗憾，没有中奖',
       data: {
-        giftId: -1
+        giftId: -1,
       }
     })
   }
