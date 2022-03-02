@@ -79,18 +79,49 @@ router.get("/user/info", async (req, res, next) => {
   })
 
 })
-
 router.get("/award/get", async (req, res, next) => {
   // 传参 uid phone
+  let data = req.query;
+  let record = await ModelGiftRecord.findOne({ uid: data.uid });
+  if (!record) {
+    res.send({
+      code: 10011,
+      msg: '您没有获得奖励，无法领取',
+      data: {}
+    })
+    return
+  }
+  await checkToken();
+  doSendTicket({ uid: data.uid, phone: data.phone }, record.giftId)
+    .then(() => {
+      res.send({
+        code: 0,
+        msg: '发放优惠券成功',
+        data: {}
+      })
+    })
+    .catch(e => {
+      res.send({
+        code: 10012,
+        msg: '发放失败，请联系客服处理',
+        data: e
+      })
+    })
+})
+router.get("/award/random", async (req, res, next) => {
+  // 传参 uid 
   let data = req.query;
   // 判断这个人领取过奖励了没有
   let record = await ModelGiftRecord.findOne({ uid: data.uid });
   if (record) {
     res.send({
       code: 0,
-      errCode: 10001,
-      msg: '已领取过奖励',
-      data: record
+      data: {
+        uid: record.uid, //用户uid
+        giftId: record.giftId, //奖励id
+        giftName: record.giftName,//奖励名称
+        isGot: record.isGot //是否已领取
+      }
     })
     return
   }
@@ -101,8 +132,7 @@ router.get("/award/get", async (req, res, next) => {
     let giftListHave = giftList.filter(e => e.count > 0);
     if (giftListHave.length == 0) {
       res.send({
-        code: 0,
-        errCode: 10002,
+        code: 10002,
         msg: '奖池已发完',
         data: {}
       })
@@ -114,33 +144,14 @@ router.get("/award/get", async (req, res, next) => {
       giftId: gift.id,
       giftName: gift.name,
       createTime: new Date().toLocaleString(),
+      isGot: false
     };
-    let funcAfterSendAward = async () => {
-      await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 })
-      await ModelGiftRecord.create(dataRecordNew)
-      res.send({
-        code: 0,
-        msg: `恭喜获得${gift.name}`,
-        data: dataRecordNew
-      })
-    }
-    doSendTicket({ uid: data.uid, phone: data.phone }, gift.id).then(e => {
-      funcAfterSendAward()
-    }).catch(async e => {
-      // 发放失败，重新获取token后重试一次
-      await checkToken();
-      doSendTicket({ uid: data.uid, phone: data.phone }, gift.id)
-        .then(() => {
-          funcAfterSendAward()
-        })
-        .catch(e => {
-          res.send({
-            code: 0,
-            errCode: 10003,
-            msg: '发放失败',
-            data: e
-          })
-        })
+    await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 })
+    await ModelGiftRecord.create(dataRecordNew)
+    res.send({
+      code: 0,
+      msg: `恭喜获得${gift.name}`,
+      data: dataRecordNew
     })
   } else {
     res.send({
@@ -255,31 +266,6 @@ router.get("/rank/update", async (req, res, next) => {
       code: 20002, data: {}, msg: '超出活动时间'
     });
     return
-  }
-  let record = await ModelRankRecord.findOne({
-    uid: data.uid
-  })
-  if (!record) {
-    await ModelRankRecord.create({
-      time_update: getTimeNow(),
-      uid: data.uid,
-      nickname: data.nickname,
-      avatar: data.avatar,
-      count: 1,
-      phone: data.phone
-    })
-  } else {
-    if (record.count >= 3) {
-      res.send({
-        code: 20001, data: {}, msg: '上报超过三次'
-      });
-      return
-    }
-    await ModelRankRecord.updateOne({
-      uid: data.uid
-    }, {
-      count: record.count + 1
-    })
   }
   let dataUser = await ModelRank.findOne({ uid: data.uid });
   let count = await ModelRank.find().count();

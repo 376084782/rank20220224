@@ -5,6 +5,7 @@ const ModelGiftRecord = new Schema({
   giftId: { type: String, default: '' },
   giftName: { type: String, default: '' },
   createTime: { type: String, default: '' },
+  isGot: { type: Boolean, default: false },
 })
 
 export default model('giftRecord', ModelGiftRecord);
