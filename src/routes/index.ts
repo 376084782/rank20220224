@@ -123,8 +123,10 @@ router.get("/v2/award", async (req, res, next) => {
   let record = await ModelUser.findOne({ uid: data.uid });
   if (!record) {
     res.send({
-      code: -1,
-      msg: '没有用户记录'
+      code: 0,
+      data: {
+        state: 0,
+      }
     })
   } else {
     if (record.giftId) {
