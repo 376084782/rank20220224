@@ -174,14 +174,16 @@ router.get("/v2/get", async (req, res, next) => {
       res.send({
         code: 0,
         data: {
-          state: true
+          state: true,
+          describe: '奖励已发放'
         }
       })
     }).catch(e => {
       res.send({
         code: 0,
         data: {
-          state: false
+          state: false,
+          describe: '奖励发放失败'
         }
       })
     })
@@ -189,7 +191,8 @@ router.get("/v2/get", async (req, res, next) => {
     res.send({
       code: 0,
       data: {
-        state: false
+        state: false,
+        describe: '无奖励发放'
       }
     })
   }
