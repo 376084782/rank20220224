@@ -5,7 +5,7 @@ const ModelUser = new Schema({
   nickname: { type: String, default: '' },
   avatar: { type: String, default: '' },
   phone: { type: String, default: '' },
-  giftId: { type: String, default: '' },
+  giftId: { type: String, default: '-1' },
   isGot: { type: Boolean, default: false },
   score: { type: Number, default: 0 }
 })

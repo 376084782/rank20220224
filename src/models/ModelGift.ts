@@ -4,6 +4,7 @@ const ModelGift = new Schema({
   name: { type: String, default: '' },
   id: { type: String, default: '' },
   count: { type: Number, default: 0 },
+  power: { type: Number, default: 0 },
 })
 
 export default model('gift', ModelGift);

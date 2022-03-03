@@ -82,11 +82,24 @@ router.get("/v2/login", async (req, res, next) => {
     }
   })
 })
+function doRandomByPower(list) {
+  let powerAll = list.reduce(function (prev, cur) {
+    return prev + cur.power;
+  }, 0);
+  let idx = Math.floor(Math.random() * (powerAll - 0) + 0);
+  let sumCur = 0
+  for (let i = 0; i < list.length; i++) {
+    sumCur += list[i].power;
+    if (idx < sumCur) {
+      return list[i]
+    }
+  }
+}
 
 router.get("/v2/score", async (req, res, next) => {
   let data = req.query || {}
   let { uid, score } = data;
-  let record = await ModelUser.findOne({ uid: data.uid });
+  let record = await ModelUser.findOne({ uid: uid });
   if (!record) {
     res.send({
       code: 0,
@@ -96,17 +109,13 @@ router.get("/v2/score", async (req, res, next) => {
     })
   } else {
     await ModelUser.updateOne({ uid }, { score });
-    if (!record.giftId) {
+    if (!record.giftId || record.giftId == -1) {
       // 不存在奖励的 抽个奖
-      let p = Math.random() < .8
-      if (p) {
-        let giftList = await ModelGift.find();
-        let giftListHave = giftList.filter(e => e.count > 0);
-        if (giftListHave.length > 0) {
-          let gift = giftListHave[Util.getRandomInt(0, giftListHave.length)];
-          await ModelUser.updateOne({ uid }, { giftId: gift.id });
-        }
-      }
+      let giftList = await ModelGift.find();
+      let giftListHave = giftList.filter(e => e.count > 0 || e.id == -1);
+      let gift = doRandomByPower(giftListHave);
+      console.log(gift, 'gift')
+      await ModelUser.updateOne({ uid }, { giftId: gift.id });
     }
     res.send({
       code: 0,
@@ -119,8 +128,8 @@ router.get("/v2/score", async (req, res, next) => {
 
 router.get("/v2/award", async (req, res, next) => {
   let data = req.query || {}
-  let { uid, score } = data;
-  let record = await ModelUser.findOne({ uid: data.uid });
+  let { uid } = data;
+  let record = await ModelUser.findOne({ uid: uid });
   if (!record) {
     res.send({
       code: 0,
@@ -129,7 +138,7 @@ router.get("/v2/award", async (req, res, next) => {
       }
     })
   } else {
-    if (record.giftId) {
+    if (record.giftId != -1) {
       // 存在奖励
       let gift = await ModelGift.findOne({ id: record.giftId })
       if (record.isGot) {
@@ -167,9 +176,9 @@ router.get("/v2/award", async (req, res, next) => {
 
 router.get("/v2/get", async (req, res, next) => {
   let data = req.query || {}
-  let { uid, nickname, avatar, phone } = data;
+  let { uid } = data;
   let record = await ModelUser.findOne({ uid: data.uid });
-  if (record && record.giftId && !record.isGot) {
+  if (record && record.giftId != -1 && !record.isGot) {
     await checkToken();
     doSendTicket({ uid: uid, phone: record.phone }, record.giftId).then(async e => {
       await ModelUser.updateOne({ uid }, { isGot: true })
