@@ -1,6 +1,5 @@
 
 import ModelGift from "../models/ModelGift";
-
 async function initGift() {
   const listGift = [
     { name: '奖励1', id: 23000085, count: 10 },

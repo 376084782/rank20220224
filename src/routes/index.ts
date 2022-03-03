@@ -95,7 +95,19 @@ router.get("/v2/score", async (req, res, next) => {
       }
     })
   } else {
-    await ModelUser.updateOne({ uid }, { score })
+    await ModelUser.updateOne({ uid }, { score });
+    if (!record.giftId) {
+      // 不存在奖励的 抽个奖
+      let p = Math.random() < .8
+      if (p) {
+        let giftList = await ModelGift.find();
+        let giftListHave = giftList.filter(e => e.count > 0);
+        if (giftListHave.length > 0) {
+          let gift = giftListHave[Util.getRandomInt(0, giftListHave.length)];
+          await ModelUser.updateOne({ uid }, { giftId: gift.id });
+        }
+      }
+    }
     res.send({
       code: 0,
       data: {
