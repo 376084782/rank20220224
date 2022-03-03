@@ -110,12 +110,13 @@ router.get("/v2/score", async (req, res, next) => {
   } else {
     await ModelUser.updateOne({ uid }, { score });
     if (!record.giftId || record.giftId == -1) {
-      // 不存在奖励的 抽个奖
-      let giftList = await ModelGift.find();
-      let giftListHave = giftList.filter(e => e.count > 0 || e.id == -1);
-      let gift = doRandomByPower(giftListHave);
-      console.log(gift, 'gift')
-      await ModelUser.updateOne({ uid }, { giftId: gift.id });
+      if (score >= 10) {
+        // 不存在奖励的 抽个奖
+        let giftList = await ModelGift.find();
+        let giftListHave = giftList.filter(e => e.count > 0 || e.id == -1);
+        let gift = doRandomByPower(giftListHave);
+        await ModelUser.updateOne({ uid }, { giftId: gift.id });
+      }
     }
     res.send({
       code: 0,
@@ -203,7 +204,7 @@ router.get("/v2/get", async (req, res, next) => {
       code: 0,
       data: {
         state: false,
-        describe: '无奖励发放'
+        describe: '无待发放奖励'
       }
     })
   }
