@@ -1,6 +1,6 @@
 import API from "../api/API";
 import ModelGift from "../models/ModelGift";
-import ModelGiftRecord from "../models/ModelGiftRecord";
+import ModelUser from "../models/ModelUser";
 import ModelRank from "../models/ModelRank";
 import ModelRankRecord from "../models/ModelRankRecord";
 import Util from "../socket/Util";
@@ -64,6 +64,129 @@ function getUserInfo(data) {
     })
   })
 }
+
+
+router.get("/v2/login", async (req, res, next) => {
+  let data = req.query || {}
+  let { uid, nickname, avatar, phone } = data;
+  let record = await ModelUser.findOne({ uid: data.uid });
+  if (!record) {
+    await ModelUser.create({
+      uid, nickname, avatar, phone, isGot: false, score: 0
+    })
+  }
+  res.send({
+    code: 0,
+    data: {
+      state: true
+    }
+  })
+})
+
+router.get("/v2/score", async (req, res, next) => {
+  let data = req.query || {}
+  let { uid, score } = data;
+  let record = await ModelUser.findOne({ uid: data.uid });
+  if (!record) {
+    res.send({
+      code: 0,
+      data: {
+        state: false
+      }
+    })
+  } else {
+    await ModelUser.updateOne({ uid }, { score })
+    res.send({
+      code: 0,
+      data: {
+        state: true
+      }
+    })
+  }
+})
+
+router.get("/v2/award", async (req, res, next) => {
+  let data = req.query || {}
+  let { uid, score } = data;
+  let record = await ModelUser.findOne({ uid: data.uid });
+  if (!record) {
+    res.send({
+      code: -1,
+      msg: '没有用户记录'
+    })
+  } else {
+    if (record.giftId) {
+      // 存在奖励
+      let gift = await ModelGift.findOne({ id: record.giftId })
+      if (record.isGot) {
+        res.send({
+          code: 0,
+          data: {
+            state: 2,
+            awardData: {
+              name: gift.name
+            }
+          }
+        })
+      } else {
+        res.send({
+          code: 0,
+          data: {
+            state: 1,
+            awardData: {
+              name: gift.name
+            }
+          }
+        })
+      }
+    } else {
+      res.send({
+        code: 0,
+        data: {
+          state: 0,
+        }
+      })
+
+    }
+  }
+})
+
+router.get("/v2/get", async (req, res, next) => {
+  let data = req.query || {}
+  let { uid, nickname, avatar, phone } = data;
+  let record = await ModelUser.findOne({ uid: data.uid });
+  if (record && record.giftId && !record.isGot) {
+    await checkToken();
+    doSendTicket({ uid: uid, phone: record.phone }, record.giftId).then(async e => {
+      await ModelUser.updateOne({ uid }, { isGot: true })
+      res.send({
+        code: 0,
+        data: {
+          state: true
+        }
+      })
+    }).catch(e => {
+      res.send({
+        code: 0,
+        data: {
+          state: false
+        }
+      })
+    })
+  } else {
+    res.send({
+      code: 0,
+      data: {
+        state: false
+      }
+    })
+  }
+})
+
+
+
+
+
 router.get("/user/info", async (req, res, next) => {
   let data = req.query;
   getUserInfo(data).then(e => {
@@ -82,7 +205,7 @@ router.get("/user/info", async (req, res, next) => {
 router.get("/award/get", async (req, res, next) => {
   // 传参 uid phone
   let data = req.query;
-  let record = await ModelGiftRecord.findOne({ uid: data.uid });
+  let record = await ModelUser.findOne({ uid: data.uid });
   if (!record) {
     res.send({
       code: 10011,
@@ -112,7 +235,7 @@ router.get("/award/random", async (req, res, next) => {
   // 传参 uid 
   let data = req.query;
   // 判断这个人领取过奖励了没有
-  let record = await ModelGiftRecord.findOne({ uid: data.uid });
+  let record = await ModelUser.findOne({ uid: data.uid });
   if (record) {
     res.send({
       code: 0,
@@ -124,17 +247,30 @@ router.get("/award/random", async (req, res, next) => {
       }
     })
     return
+  } else {
+    if (!!data.score) {
+      res.send({
+        code: 0,
+        msg: '很遗憾，没有中奖',
+        data: {
+          giftId: -1,
+        }
+      })
+      return
+    }
   }
-  await checkToken();
   let p = Math.random() < .8
   if (p) {
     let giftList = await ModelGift.find();
     let giftListHave = giftList.filter(e => e.count > 0);
     if (giftListHave.length == 0) {
+      // 奖池发完的情况，返回没中奖
       res.send({
-        code: 10002,
-        msg: '奖池已发完',
-        data: {}
+        code: 0,
+        msg: '很遗憾，没有中奖',
+        data: {
+          giftId: -1,
+        }
       })
       return
     }
@@ -147,7 +283,7 @@ router.get("/award/random", async (req, res, next) => {
       isGot: false
     };
     await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 })
-    await ModelGiftRecord.create(dataRecordNew)
+    await ModelUser.create(dataRecordNew)
     res.send({
       code: 0,
       msg: `恭喜获得${gift.name}`,
