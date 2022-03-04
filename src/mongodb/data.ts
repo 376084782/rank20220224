@@ -20,7 +20,7 @@ async function initUser() {
 
 
 const createData = async () => {
-  await initGift()
-  await initUser()
+  // await initGift()
+  // await initUser()
 }
 export { createData }
