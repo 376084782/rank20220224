@@ -33,7 +33,7 @@ async function fixGiftCount() {
   let listUsers = await ModelUser.find();
   listUsers.forEach(async user => {
     if (user.giftId > -1) {
-      let gift: any = await ModelGift.find({ id: user.giftId });
+      let gift: any = await ModelGift.findOne({ id: user.giftId });
       await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 });
       console.log('修正礼物库存', gift.name, gift.count - 1)
     }
