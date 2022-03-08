@@ -73,6 +73,6 @@ function doRandomByPower(list) {
 const createData = async () => {
   // await initGift()
   // await initUser()
-  await fixGiftCount()
+  // await fixGiftCount()
 }
 export { createData }
