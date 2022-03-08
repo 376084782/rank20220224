@@ -102,6 +102,17 @@ function doRandomByPower(list) {
   }
 }
 
+router.get("/v2/random", async (req, res, next) => {
+  // 不存在奖励的 抽个奖
+  let giftList = await ModelGift.find();
+  let giftListHave = giftList.filter(e => e.count > 0 || e.id == -1);
+  let gift = doRandomByPower(giftListHave);
+  res.send({
+    code: 0,
+    data: gift
+  })
+})
+
 router.get("/v2/score", async (req, res, next) => {
   let data = req.query || {}
   let { uid, score } = data;
@@ -121,6 +132,7 @@ router.get("/v2/score", async (req, res, next) => {
         let giftList = await ModelGift.find();
         let giftListHave = giftList.filter(e => e.count > 0 || e.id == -1);
         let gift = doRandomByPower(giftListHave);
+        await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 })
         await ModelUser.updateOne({ uid }, { giftId: gift.id });
       }
     }
