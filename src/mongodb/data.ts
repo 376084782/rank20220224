@@ -31,18 +31,48 @@ async function initUser() {
 
 async function fixGiftCount() {
   let listUsers = await ModelUser.find();
-  listUsers.forEach(async user => {
-    if (user.giftId > -1) {
+  // listUsers.forEach(async user => {
+  //   if (user.giftId > -1) {
+  //     let gift: any = await ModelGift.findOne({ id: user.giftId });
+  //     await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 });
+  //     console.log('修正礼物库存', gift.name, gift.count - 1)
+  //   }
+  // })
+
+  // 如果这个人还没有领取 并且没有库存了，重新抽一份礼物
+  listUsers.forEach(async (user: any) => {
+    if (user.giftId > -1 && !user.isGot) {
       let gift: any = await ModelGift.findOne({ id: user.giftId });
-      await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 });
-      console.log('修正礼物库存', gift.name, gift.count - 1)
+      if (gift.count <= 0) {
+        // 重新抽一个
+        let giftList = await ModelGift.find();
+        let giftListHave = giftList.filter(e => e.count > 0 || e.id == -1);
+        let gift = doRandomByPower(giftListHave);
+        console.log(`库存错误，${user.nickname}(${user.uid})重新抽奖,获得`, gift)
+        await ModelGift.updateOne({ id: gift.id }, { count: gift.count - 1 })
+        await ModelUser.updateOne({ uid: user.uid }, { giftId: gift.id });
+      }
     }
   })
+}
+
+function doRandomByPower(list) {
+  let powerAll = list.reduce(function (prev, cur) {
+    return prev + cur.power;
+  }, 0);
+  let idx = Math.floor(Math.random() * (powerAll - 0) + 0);
+  let sumCur = 0
+  for (let i = 0; i < list.length; i++) {
+    sumCur += list[i].power;
+    if (idx < sumCur) {
+      return list[i]
+    }
+  }
 }
 
 const createData = async () => {
   // await initGift()
   // await initUser()
-  // await fixGiftCount()
+  await fixGiftCount()
 }
 export { createData }
