@@ -1,3 +1,4 @@
+import excelPort, { WorkSheet } from 'node-xlsx';
 import API from "../api/API";
 import ModelGift from "../models/ModelGift";
 import ModelUser from "../models/ModelUser";
@@ -72,6 +73,51 @@ function getUserInfo(data) {
 }
 
 
+function writeExcel(datas, map) {
+
+  let sheetData = [];
+  // 写入表头
+  let colTitle = [];
+  for (let key in map) {
+    colTitle.push(map[key])
+  }
+  sheetData.push(colTitle)
+  datas.forEach(element => {
+    let colData = [];
+    for (let key in map) {
+      colData.push(element[key])
+    }
+    sheetData.push(colData)
+  });
+
+  let xlsxObj = [{
+    name: 'sheet1',
+    data: sheetData,
+    options: {}
+  }]
+  //生成表格
+  let file = excelPort.build(xlsxObj);
+  return file;
+}
+
+router.get("/excel", async (req, res, next) => {
+  // 不存在奖励的 抽个奖
+  let list = await ModelUser.find({});
+  let file = writeExcel(list, {
+    uid: 'id',
+    nickname: '姓名',
+    sex: '性别',
+    phone: '手机号',
+    giftId: '获得优惠券id',
+    isGot: '是否领取优惠券',
+    score: '最高得分',
+  })
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader("Content-Disposition", "attachment; filename=" + "list.xlsx");
+  res.send(file);
+})
+
+
 router.get("/v2/login", async (req, res, next) => {
   let data = req.query || {}
   let { uid, nickname, avatar, phone } = data;
@@ -94,8 +140,10 @@ function doRandomByPower(list) {
   }, 0);
   let idx = Math.floor(Math.random() * (powerAll - 0) + 0);
   let sumCur = 0
+  console.log(powerAll, 'powerAll', idx, list)
   for (let i = 0; i < list.length; i++) {
     sumCur += list[i].power;
+    console.log(sumCur, i, 'powerAll')
     if (idx < sumCur) {
       return list[i]
     }

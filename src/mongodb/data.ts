@@ -19,7 +19,7 @@ async function initGift() {
     { name: '乳胶枕抵用券', id: '23000018', count: 100, power: 100 },
     { name: '口罩抵用券', id: '23000020', count: 1800, power: 300 },
     { name: '蒸汽眼罩抵用券', id: '23000019', count: 1000, power: 200 },
-    { name: '谢谢惠顾', id: '-1', count: 10, power: 380 },
+    { name: '谢谢惠顾', id: '-1', count: 10, power: 800 },
 
   ];
   await ModelGift.deleteMany();
@@ -31,6 +31,7 @@ async function initUser() {
 
 async function fixGiftCount() {
   let listUsers = await ModelUser.find();
+  
   // listUsers.forEach(async user => {
   //   if (user.giftId > -1) {
   //     let gift: any = await ModelGift.findOne({ id: user.giftId });
@@ -54,6 +55,7 @@ async function fixGiftCount() {
       }
     }
   })
+
 }
 
 function doRandomByPower(list) {
